@@ -17,6 +17,12 @@
     th {
       background-color: #f2f2f2;
     }
+    .variation-row {
+      background-color: #f9f9f9;
+    }
+    .variation-row td {
+      padding-left: 40px;
+    }
   </style>
 </head>
 <body>
@@ -30,6 +36,7 @@
         <th>Title</th>
         <th>Price</th>
         <th>Quantity</th>
+        <th>Variations</th>
       </tr>
     </thead>
     <tbody id="listings-table-body">
@@ -66,14 +73,36 @@
         // Append data to the table
         const tableBody = document.getElementById("listings-table-body");
         data.forEach((item) => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
+          // Create a row for the parent item
+          const parentRow = document.createElement("tr");
+          parentRow.innerHTML = `
             <td>${item.ItemID}</td>
             <td>${item.Title}</td>
             <td>${item.Price}</td>
             <td>${item.Quantity}</td>
+            <td>${item.Variations && item.Variations.length > 0 ? item.Variations.length : "None"}</td>
           `;
-          tableBody.appendChild(row);
+          tableBody.appendChild(parentRow);
+  
+          // Add rows for variations, if any
+          if (item.Variations && item.Variations.length > 0) {
+            item.Variations.forEach((variation) => {
+              const variationRow = document.createElement("tr");
+              variationRow.classList.add("variation-row");
+              variationRow.innerHTML = `
+                <td colspan="2">${variation.Title || "N/A"}</td>
+                <td>${variation.Price}</td>
+                <td>${variation.Quantity}</td>
+                <td>
+                  ${variation.Specifics.map(specific => {
+                    const [key, value] = Object.entries(specific)[0];
+                    return `${key}: ${value}`;
+                  }).join(", ")}
+                </td>
+              `;
+              tableBody.appendChild(variationRow);
+            });
+          }
         });
   
         statusElement.textContent = `Loaded ${data.length} items from page ${currentPage}.`;
@@ -96,7 +125,5 @@
       fetchListings(true); // Pass true to enable auto-loading
     });
   </script>
-  
-  
 </body>
 </html>

@@ -41,7 +41,8 @@ def fetch_all_listings():
 
     try:
         response = requests.post(ebay_api_url, data=body, headers=headers, timeout=30)
-        
+
+
         if response.status_code != 200:
             return jsonify({"error": f"eBay API returned status {response.status_code}"}), response.status_code
 
@@ -49,25 +50,65 @@ def fetch_all_listings():
         namespaces = {"ns": "urn:ebay:apis:eBLBaseComponents"}
 
         for item in root.findall(".//ns:Item", namespaces):
-            item_id = item.find("ns:ItemID", namespaces)
-            item_id = item_id.text if item_id is not None else "N/A"
+            title_elem = item.find("ns:Title", namespaces)
+            item_id_elem = item.find("ns:ItemID", namespaces)
+            price_elem = item.find(".//ns:CurrentPrice", namespaces)
+            quantity_elem = item.find(".//ns:Quantity", namespaces)
 
-            title = item.find("ns:Title", namespaces)
-            title = title.text if title is not None else "N/A"
+            title = title_elem.text if title_elem is not None else "N/A"
+            item_id = item_id_elem.text if item_id_elem is not None else "N/A"
+            price = price_elem.text if price_elem is not None else "N/A"
+            quantity = quantity_elem.text if quantity_elem is not None else "N/A"
 
-            price = item.find(".//ns:CurrentPrice", namespaces)
-            price = price.text if price is not None else "N/A"
+            item_data = {
+                "ItemID": item_id,
+                "Title": title,
+                "Price": price,
+                "Quantity": quantity,
+                "Variations": []
+            }
 
-            quantity = item.find(".//ns:Quantity", namespaces)
-            quantity = quantity.text if quantity is not None else "N/A"
+            # Parse variations
+            variations_block = item.find("ns:Variations", namespaces)
+            if variations_block is not None:
+                print("Variations Block Found")  # Debugging
+                variations = variations_block.findall("ns:Variation", namespaces)
+                for variation in variations:
+                    variation_price_elem = variation.find("ns:StartPrice", namespaces)
+                    variation_quantity_elem = variation.find("ns:Quantity", namespaces)
+                    variation_title_elem = variation.find("ns:VariationTitle", namespaces)
 
-            items.append({"ItemID": item_id, "Title": title, "Price": price, "Quantity": quantity})
+                    variation_data = {
+                        "Price": variation_price_elem.text if variation_price_elem is not None else "N/A",
+                        "Quantity": variation_quantity_elem.text if variation_quantity_elem is not None else "N/A",
+                        "Title": variation_title_elem.text if variation_title_elem is not None else "N/A",
+                        "Specifics": []
+                    }
+
+                    # Parse specifics
+                    specifics = variation.findall(".//ns:NameValueList", namespaces)
+                    for specific in specifics:
+                        name_elem = specific.find("ns:Name", namespaces)
+                        value_elem = specific.find("ns:Value", namespaces)
+
+                        name = name_elem.text if name_elem is not None else "N/A"
+                        value = value_elem.text if value_elem is not None else "N/A"
+
+                        variation_data["Specifics"].append({name: value})
+
+                    item_data["Variations"].append(variation_data)  # Append variation
+
+            items.append(item_data)
+
+        # Debug final JSON structure before sending
+        print("Final Items JSON:", items)
 
         return jsonify(items)
     except requests.exceptions.Timeout:
         return jsonify({"error": "Request timed out"}), 504
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/")
 def index():
