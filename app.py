@@ -71,7 +71,6 @@ def fetch_all_listings():
             # Parse variations
             variations_block = item.find("ns:Variations", namespaces)
             if variations_block is not None:
-                print("Variations Block Found")  # Debugging
                 variations = variations_block.findall("ns:Variation", namespaces)
                 for variation in variations:
                     variation_price_elem = variation.find("ns:StartPrice", namespaces)
@@ -100,9 +99,6 @@ def fetch_all_listings():
 
             items.append(item_data)
 
-        # Debug final JSON structure before sending
-        print("Final Items JSON:", items)
-
         return jsonify(items)
     except requests.exceptions.Timeout:
         return jsonify({"error": "Request timed out"}), 504
@@ -112,7 +108,7 @@ def fetch_all_listings():
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("listings.html")
 
 
 if __name__ == "__main__":

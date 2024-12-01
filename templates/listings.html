@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="page-title">eBay Active Listings</h1>
+<div class="button-container">
+  <button id="load-button" class="primary-button" onclick="fetchListings()">Load Listings</button>
+</div>
+<p id="status" class="status-message"></p> <!-- Status message -->
+<table class="styled-table">
+  <thead>
+    <tr>
+      <th>Item ID</th>
+      <th>Title</th>
+      <th>Price</th>
+      <th>Quantity</th>
+      <th>Variations</th>
+    </tr>
+  </thead>
+  <tbody id="listings-table-body">
+  </tbody>
+</table>
+
+<script>
+  let currentPage = 1;
+  const entriesPerPage = 200; // Maximum allowed per page by eBay API
+  let loading = false;
+
+  async function fetchListings(autoLoad = false) {
+    if (loading) return; // Prevent multiple simultaneous requests
+    loading = true;
+
+    const statusElement = document.getElementById("status");
+    const loadButton = document.getElementById("load-button");
+
+    try {
+      statusElement.textContent = `Loading page ${currentPage}...`;
+
+      const response = await fetch(`/api/ebay-listings?page=${currentPage}&entriesPerPage=${entriesPerPage}`);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.length === 0) {
+        statusElement.textContent = "All items have been loaded.";
+        loadButton.style.display = "none"; // Hide the button
+        return;
+      }
+
+      // Append data to the table
+      const tableBody = document.getElementById("listings-table-body");
+      data.forEach((item) => {
+        // Create a row for the parent item
+        const parentRow = document.createElement("tr");
+        parentRow.innerHTML = `
+          <td>${item.ItemID}</td>
+          <td>${item.Title}</td>
+          <td>${item.Price}</td>
+          <td>${item.Quantity}</td>
+          <td>${item.Variations && item.Variations.length > 0 ? item.Variations.length : "None"}</td>
+        `;
+        tableBody.appendChild(parentRow);
+
+        // Add rows for variations, if any
+        if (item.Variations && item.Variations.length > 0) {
+          item.Variations.forEach((variation) => {
+            const variationRow = document.createElement("tr");
+            variationRow.classList.add("variation-row");
+            variationRow.innerHTML = `
+              <td colspan="2">${variation.Title || "N/A"}</td>
+              <td>${variation.Price}</td>
+              <td>${variation.Quantity}</td>
+              <td>
+                ${variation.Specifics.map(specific => {
+                  const [key, value] = Object.entries(specific)[0];
+                  return `${key}: ${value}`;
+                }).join(", ")}
+              </td>
+            `;
+            tableBody.appendChild(variationRow);
+          });
+        }
+      });
+
+      statusElement.textContent = `Loaded ${data.length} items from page ${currentPage}.`;
+      currentPage++;
+
+      if (autoLoad) {
+        // Automatically fetch the next page
+        await fetchListings(true);
+      }
+    } catch (error) {
+      console.error("Error fetching listings:", error);
+      statusElement.textContent = `Error: ${error.message}`;
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Auto-load all items on page load
+  document.addEventListener("DOMContentLoaded", () => {
+    fetchListings(true); // Pass true to enable auto-loading
+  });
+</script>
+{% endblock %}
