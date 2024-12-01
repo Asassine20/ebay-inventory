@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eBay Listings</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+  <h1>eBay Active Listings</h1>
+  <button id="load-button" onclick="fetchListings()">Load Listings</button>
+  <p id="status"></p> <!-- Status message -->
+  <table>
+    <thead>
+      <tr>
+        <th>Item ID</th>
+        <th>Title</th>
+        <th>Price</th>
+        <th>Quantity</th>
+      </tr>
+    </thead>
+    <tbody id="listings-table-body">
+    </tbody>
+  </table>
+
+  <script>
+    let currentPage = 1;
+    const entriesPerPage = 200; // Maximum allowed per page by eBay API
+    let loading = false;
+  
+    async function fetchListings(autoLoad = false) {
+      if (loading) return; // Prevent multiple simultaneous requests
+      loading = true;
+  
+      const statusElement = document.getElementById("status");
+      const loadButton = document.getElementById("load-button");
+  
+      try {
+        statusElement.textContent = `Loading page ${currentPage}...`;
+  
+        const response = await fetch(`/api/ebay-listings?page=${currentPage}&entriesPerPage=${entriesPerPage}`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+  
+        const data = await response.json();
+        if (data.length === 0) {
+          statusElement.textContent = "All items have been loaded.";
+          loadButton.style.display = "none"; // Hide the button
+          return;
+        }
+  
+        // Append data to the table
+        const tableBody = document.getElementById("listings-table-body");
+        data.forEach((item) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${item.ItemID}</td>
+            <td>${item.Title}</td>
+            <td>${item.Price}</td>
+            <td>${item.Quantity}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+  
+        statusElement.textContent = `Loaded ${data.length} items from page ${currentPage}.`;
+        currentPage++;
+  
+        if (autoLoad) {
+          // Automatically fetch the next page
+          await fetchListings(true);
+        }
+      } catch (error) {
+        console.error("Error fetching listings:", error);
+        statusElement.textContent = `Error: ${error.message}`;
+      } finally {
+        loading = false;
+      }
+    }
+  
+    // Auto-load all items on page load
+    document.addEventListener("DOMContentLoaded", () => {
+      fetchListings(true); // Pass true to enable auto-loading
+    });
+  </script>
+  
+  
+</body>
+</html>
